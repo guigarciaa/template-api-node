@@ -17,13 +17,14 @@ export class OracleParameter {
 }
 
 export enum ParameterType {
-  BLOB = 2007,
+  BLOB = 2019,
   BUFFER = 2005,
-  CLOB = 2006,
-  CURSOR = 2004,
-  DATE = 2003,
+  CLOB = 2017,
+  CURSOR = 2021,
+  DATE = 2014,
   DEFAULT = 0,
-  NUMBER = 2002,
+  NUMBER = 2010,
+  NCLOB = 2018,
   STRING = 2001
 }
 

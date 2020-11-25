@@ -1,37 +1,36 @@
 import { Security } from "../../../lib/security";
-import { readFileSync } from 'fs';
+import os from "os";
 import { Materialize } from "../../../lib/materialize";
+import { Servers, Settings, Config } from "../../../config/config";
 
-export class OracleCredentialsJSON {
-  credentials: string = '';
-  key: string = '';
+export class OracleCredentialsExternal {
+  connectString: string = '';
+  externalAuth: boolean = false;
 }
 
 export class OracleCredentials {
   user: string = '';
   password: string = '';
   connectString: string = '';
+  externalAuth: boolean = false;
 }
 
-let _oracleCredentials: OracleCredentials;
+let _oracleCredentials: OracleCredentials | OracleCredentialsExternal;
 
 export class Credentials {
-  // private _user: string = "MIS_VAREJO";
-  // private _password: string = "misvarejopwd01";
-  // private _connectString072: string = "(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=clup2-scan.santanderbr.corp)(PORT=1521)))(CONNECT_DATA=(SERVICE_NAME=sby072)))";
-  // private _connectString296: string = "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=***)(PORT=***))(FAILOVER=on)(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=***)(FAILOVER_MODE=(TYPE=SELECT)(METHOD=BASIC))))";
-
   constructor() {
     //this.encryptJson();
     _oracleCredentials = this._getCredentialsJSON();
   }
 
-  private _getCredentialsJSON(): OracleCredentials {
+  private _getCredentialsJSON(): OracleCredentials | OracleCredentialsExternal {
+    let config = Config.getJSONConfig()
     if (!_oracleCredentials) {
-      let security = new Security();
-      let file = readFileSync(require('path').resolve(__dirname, '../../../oracle-credentials.json'), 'utf8');
-      let oracleCredentialsJSON = Materialize.deserialize(OracleCredentialsJSON, file);
-      _oracleCredentials = security.descriptografar(OracleCredentials, oracleCredentialsJSON.credentials, 'misvarejo');
+      if (this.isHomolog(config.servers)) {
+        _oracleCredentials = this.credentialsDescrip(config.orapr072);
+      } else {
+        _oracleCredentials = this.credentialsDescrip(config.orapr296);
+      }
     }
     return _oracleCredentials;
   }
@@ -42,25 +41,28 @@ export class Credentials {
   //   console.log(security.encrypt(file, 'misvarejo'));
   // }
 
-  get user() {
-    return _oracleCredentials.user;
-  }
-  get password() {
-    return _oracleCredentials.password;
-  }
-  get connectionString072() {
-    return _oracleCredentials.connectString;
-  }
-  get connectionString296() {
-    return _oracleCredentials.connectString;
+  private isHomolog(list: Servers[]): boolean {
+    if (list.find(x => x.name.toLocaleLowerCase() == os.hostname().toLowerCase())) {
+      return true;
+    }
+    return false;
   }
 
+  private credentialsDescrip(settings: Settings): OracleCredentials | OracleCredentialsExternal {
+    if (!settings.cripto) {
+      return Materialize.deserialize(OracleCredentialsExternal, settings);
+    } else {
+      const security = new Security();
+      return security.descriptografar(
+        OracleCredentials,
+        settings.connectionString,
+        settings.securit
+      );
+    }
+  }
+
+
   public getCredentials() {
-    return {
-      user: _oracleCredentials.user,
-      password: _oracleCredentials.password,
-      connectString: _oracleCredentials.connectString
-      //tag: this._sessionTag
-    };
+    return _oracleCredentials;
   }
 }

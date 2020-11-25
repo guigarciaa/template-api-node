@@ -63,19 +63,18 @@ export class OracleDatabase {
   }
 
   executeProcedure(): Promise<{}> {
-    let context = this;
-    return new Promise(async function (resolve, reject) {
+    return new Promise(async (resolve, reject) => {
       try {
-        await context.connProm;
-        let query = context.generateQueryProcedure();
-        let params = context.generateParametersProcedure();
+        await this.connProm;
+        let query = this.generateQueryProcedure();
+        let params = this.generateParametersProcedure();
 
         let start = new Date();
-        let resultSet: OracleDB.Result<{}> = await context.conn.execute(query, params, { outFormat: OracleDB.DB_TYPE_OBJECT });
+        let resultSet: OracleDB.Result<{}> = await this.conn.execute(query, params, { outFormat: OracleDB.OUT_FORMAT_OBJECT });
         let end = new Date();
         let end2 = end.valueOf() - start.valueOf();
 
-        let result: {} = await context.fetchRowsFromRS(context.conn, (resultSet.outBinds as any).cursor);
+        let result: {} = await this.fetchRowsFromRS(this.conn, (resultSet.outBinds as any).cursor);
         let obj = {
           data: result,
           timeProcedure: end2
@@ -84,13 +83,19 @@ export class OracleDatabase {
         resolve(obj);
       } catch (err) {
         reject(err);
-      }
-      if (context.conn) context.conn.release();
+      } finally {
+        if (!!this.conn) {
+          try {            
+            await this.conn.release();
+          } catch (error) {
+            throw error;
+          }
+        }
+      }     
     });
   }
 
   fetchRowsFromRS(connection: any, resultSet: any): {} {
-    let coluns = resultSet.metaData;
     return new Promise((resolve, reject) => {
       let rowsReturn: any = [];
       loop(connection, resultSet);
@@ -101,13 +106,7 @@ export class OracleDatabase {
           } else if (rows.length === 0) {
             resolve(rowsReturn);
           } else if (rows.length > 0) {
-            let row = rows[0];
-            let obj = {}
-            for (let index = 0; index < coluns.length; index++) {
-              const element = coluns[index];
-              obj[element.name] = row[index];
-            }
-            rowsReturn.push(obj);
+            rowsReturn.push(rows[0]);
             loop(connection, resultSet);
           }
         });
